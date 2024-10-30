@@ -33,7 +33,7 @@ where
     HashMap::from_iter(input.iter().map(|(k, v)| (v.to_owned(), k.to_owned())))
 }
 
-fn load_model_config(config_path: &Path) -> SonataResult<(ModelConfig, PiperSynthesisConfig)> {
+fn load_model_config(config_path: &Path, speaker_id: i64) -> SonataResult<(ModelConfig, PiperSynthesisConfig)> {
     let file = match File::open(config_path) {
         Ok(file) => file,
         Err(why) => {
@@ -55,7 +55,7 @@ fn load_model_config(config_path: &Path) -> SonataResult<(ModelConfig, PiperSynt
         }
     };
     let synth_config = PiperSynthesisConfig {
-        speaker: None,
+        speaker: Some(speaker_id),
         noise_scale: model_config.inference.noise_scale,
         length_scale: model_config.inference.length_scale,
         noise_w: model_config.inference.noise_w,
@@ -72,8 +72,8 @@ fn create_inference_session(model_path: &Path) -> Result<ort::Session, ort::Erro
         .commit_from_file(model_path)
 }
 
-pub fn from_config_path(config_path: &Path) -> SonataResult<Arc<dyn SonataModel + Send + Sync>> {
-    let (config, synth_config) = load_model_config(config_path)?;
+pub fn from_config_path(config_path: &Path, speaker_id: i64) -> SonataResult<Arc<dyn SonataModel + Send + Sync>> {
+    let (config, synth_config) = load_model_config(config_path, speaker_id)?;
     if config.streaming.unwrap_or_default() {
         Ok(Arc::new(VitsStreamingModel::from_config(
             config,
@@ -249,8 +249,8 @@ pub struct VitsModel {
 }
 
 impl VitsModel {
-    pub fn new(config_path: PathBuf, onnx_path: &Path) -> SonataResult<Self> {
-        match load_model_config(&config_path) {
+    pub fn new(config_path: PathBuf, onnx_path: &Path, speaker_id: i64) -> SonataResult<Self> {
+        match load_model_config(&config_path,speaker_id) {
             Ok((config, synth_config)) => Self::from_config(config, synth_config, onnx_path),
             Err(error) => Err(error),
         }
